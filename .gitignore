@@ -1,0 +1,24 @@
+# Unity file excludes
+*.log
+.gradle/
+.idea/
+.vs/
+build/
+Builds/
+Library/
+obj/
+Logs/
+
+# Project file excludes
+*.csproj
+*.csproj.user
+*.DotSettings
+*.DotSettings.user
+*.sln
+*.suo
+*.userprefs
+
+
+Assets/.DS_Store
+
+.DS_Store
