@@ -25,12 +25,12 @@ PrefabInstance:
     - target: {fileID: 4226010003516516054, guid: 7156d266e819797408376556f54df80a,
         type: 3}
       propertyPath: m_Name
-      value: HiddenToken
+      value: HiddenToken Variant
       objectReference: {fileID: 0}
     - target: {fileID: 6751136238513363647, guid: 7156d266e819797408376556f54df80a,
         type: 3}
       propertyPath: m_state
-      value: 3
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7443302199413472578, guid: 7156d266e819797408376556f54df80a,
         type: 3}

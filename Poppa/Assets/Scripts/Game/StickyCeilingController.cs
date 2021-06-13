@@ -6,8 +6,6 @@ using UnityEngine;
 
 public class StickyCeilingController : MonoBehaviour
 {
-    private const float k_fixedGapSize = 90.00193f;
-    
     [SerializeField] private Canvas m_canvas;
     [SerializeField] private GameObject m_hiddenTokenPrefab;
 
@@ -29,7 +27,7 @@ public class StickyCeilingController : MonoBehaviour
         while (spawnPos.x < m_width)
         {
             Instantiate(m_hiddenTokenPrefab, spawnPos, Quaternion.identity, transform);
-            spawnPos.x += k_fixedGapSize;
+            spawnPos.x += AttachmentDefs.k_xDistBetweenAttachedTokens;
         }
     }
 }

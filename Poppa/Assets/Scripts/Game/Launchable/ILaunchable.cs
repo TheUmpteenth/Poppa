@@ -8,6 +8,7 @@ using UnityEngine;
 public interface ILaunchable
 {
     public event Action OnLaunchableBecomesInactive;
+    public event Action<ILaunchable> OnLaunchableDestroyed;
     
     GameObject View { get; }
     Vector2 Velocity { get; set; }

@@ -5,21 +5,25 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
-public class Token : MonoBehaviour, ILaunchable, IAttachable
+public class Token : MonoBehaviour, ILaunchable, IAttachable, IMatchable
 {
     private enum TokenState
     {
+        Locked,
         Loaded,
-        Launched,
+        Moving,
+        ResolvingCollisions,
+        Attaching,
         Attached,
-        Locked
+        Matched,
     }
 
-    private const float k_midpointNormalOffset = 0.342045f;//20 degrees
     private static readonly Vector2 NegateX = new Vector2(-1f, 1f);
     
     public event Action OnLaunchableBecomesInactive;
+    public event Action<ILaunchable> OnLaunchableDestroyed;
     
     [SerializeField] private float m_baseSpeed = 1000f;
     [SerializeField] private TokenState m_state = TokenState.Loaded;
@@ -29,6 +33,18 @@ public class Token : MonoBehaviour, ILaunchable, IAttachable
     public List<IAttachable> AttachedItems { get; set; }
     public Vector2 Velocity { get; set; }
     public float Speed { get; set; }
+    public MatchDefs.MatchType Type { get; set; }
+    public Color Colour 
+    { 
+        get => m_color;
+        set
+        {
+            m_color = value;
+            View.GetComponent<Image>().color = m_color;
+        } 
+    }
+
+    private Color m_color;
     
     private Vector2 m_attachPosition = Vector2.zero;
 
@@ -45,6 +61,7 @@ public class Token : MonoBehaviour, ILaunchable, IAttachable
 
     public void Awake()
     {
+        Type = MatchDefs.MatchType.None;
         AttachedItems = new List<IAttachable>();
         Velocity = Vector2.zero;
         Speed = m_baseSpeed;
@@ -69,59 +86,86 @@ public class Token : MonoBehaviour, ILaunchable, IAttachable
 
     public void Update()
     {
-        UpdateMovement();
+        switch (m_state)
+        {
+            case TokenState.Moving:
+            {
+                UpdateMovement();
+                break;
+            }
+            case TokenState.ResolvingCollisions:
+            {
+                m_state = TokenState.Attaching;
+                break;
+            }
+            case TokenState.Attaching:
+            {
+                ResolveAttachments();
+                break;
+            }
+            case TokenState.Matched:
+            {
+                OnLaunchableDestroyed?.Invoke(this);
+                Destroy(gameObject);
+                break;
+            }
+            default:
+                break;
+        }
     }
 
     public void Launch(Vector2 velocity)
     {
         Velocity = velocity.normalized * Speed;
         transform.SetParent(m_canvas.transform, true);
-        m_state = TokenState.Launched;
+        m_state = TokenState.Moving;
     }
-    
+
     public void UpdateMovement()
     {
-        if (m_state == TokenState.Launched)
+        var position = m_rectTransform.anchoredPosition;
+        position += Velocity * Time.deltaTime;
+
+        if (position.x <= m_bounds.x)
         {
-            var position = m_rectTransform.anchoredPosition;
-            position += Velocity * Time.deltaTime;
-            
-            if (position.x <= m_bounds.x)
-            {
-                var xOffset = position.x - m_bounds.x;
-                position.x = m_bounds.x - xOffset;
-                Velocity *= NegateX;
-            }
-
-            if (position.x >= m_bounds.y)
-            {
-                var xOffset = position.x - m_bounds.y;
-                position.x = m_bounds.y - xOffset;
-                Velocity *= NegateX;
-            }
-            
-            m_rectTransform.anchoredPosition = position;
+            var xOffset = position.x - m_bounds.x;
+            position.x = m_bounds.x - xOffset;
+            Velocity *= NegateX;
         }
-    }
 
+        if (position.x >= m_bounds.y)
+        {
+            var xOffset = position.x - m_bounds.y;
+            position.x = m_bounds.y - xOffset;
+            Velocity *= NegateX;
+        }
+
+        m_rectTransform.anchoredPosition = position;
+    }
+    
     public void OnCollisionEnter2D(Collision2D collision)
     {
-        Debug.Log($"Collision Detected {m_state}");
+        var otherAttachable = collision.collider.gameObject.GetComponent<IAttachable>();
         switch (m_state)
         {
-            case TokenState.Launched:
-                var otherAttachable = collision.collider.gameObject.GetComponent<IAttachable>();
+            case TokenState.Moving:
                 if (otherAttachable != null)
                 {
                     m_rectTransform.position = otherAttachable.GetAttachedPosition(collision);
 
-                    TryAttach(otherAttachable);
+                    m_state = TokenState.ResolvingCollisions;
+                    otherAttachable.SetAttachment(this);
+                    this.SetAttachment(otherAttachable);
                 }
                 break;
-            case TokenState.Attached:
-                m_rigidBody.Sleep();
-                var newAttachable = collision.collider.gameObject.GetComponent<IAttachable>();
-                TryAttach(newAttachable);
+            case TokenState.Attaching:
+            case TokenState.ResolvingCollisions:
+                m_state = TokenState.ResolvingCollisions;
+                if (otherAttachable != null)
+                {
+                    otherAttachable.SetAttachment(this);
+                    this.SetAttachment(otherAttachable);
+                }
                 break;
             default:
                 m_rigidBody.Sleep();
@@ -135,20 +179,20 @@ public class Token : MonoBehaviour, ILaunchable, IAttachable
 
         if (contactPoint.normal.x > 0) //left or right
         {
-            m_attachPosition.x = 0.5f;
+            m_attachPosition.x = AttachmentDefs.k_xComponentAttachmentAngle;
         }
         else
         {
-            m_attachPosition.x = -0.5f;
+            m_attachPosition.x = -AttachmentDefs.k_xComponentAttachmentAngle;
         }
 
-        if (contactPoint.normal.y > k_midpointNormalOffset) //top, middle or bottom
+        if (contactPoint.normal.y > AttachmentDefs.k_yComponentAngleForMidAttach) //top, middle or bottom
         {
-            m_attachPosition.y = 0.866f;
+            m_attachPosition.y = AttachmentDefs.k_yComponentAttachmentAngle;
         }
-        else if (contactPoint.normal.y < -k_midpointNormalOffset) //top, middle or bottom
+        else if (contactPoint.normal.y < -AttachmentDefs.k_yComponentAngleForMidAttach) //top, middle or bottom
         {
-            m_attachPosition.y = -0.866f;
+            m_attachPosition.y = -AttachmentDefs.k_yComponentAttachmentAngle;
         }
         else
         {
@@ -164,12 +208,89 @@ public class Token : MonoBehaviour, ILaunchable, IAttachable
         return retval;
     }
 
-    public bool TryAttach(IAttachable other)
+    public void BeginAttaching(IAttachable other)
+    {
+        m_rigidBody.constraints = RigidbodyConstraints2D.FreezeAll;
+    }
+
+    public void SetAttachment(IAttachable other)
+    {
+        if (!AttachedItems.Contains(other))
+        {
+            AttachedItems.Add(other);
+        }
+    }
+
+    public void ResolveAttachments()
     {
         OnLaunchableBecomesInactive?.Invoke();
         m_state = TokenState.Attached;
-        m_rigidBody.constraints = RigidbodyConstraints2D.FreezeAll;
-        AttachedItems.Add(other);
-        return false;
+        if (Type == MatchDefs.MatchType.Bomb)
+        {
+            foreach (var attachable in AttachedItems)
+            {
+                if (attachable is IMatchable matchable)
+                {
+                    matchable.SetMatchComplete();
+                    SetMatchComplete();
+                }
+            }
+        }
+        else
+        {
+            var matchedGroup = new List<IMatchable>();
+            if (TryGetMatchedGroup(ref matchedGroup))
+            {
+                if (matchedGroup.Count >= MatchDefs.k_minimumGroupSize)
+                {
+                    foreach (var matchable in matchedGroup)
+                    {
+                        matchable.SetMatchComplete();
+                    }
+                }
+            }
+        }
+    }
+
+    public bool TryGetMatchedGroup(ref List<IMatchable> matchedGroup)
+    {
+        var matchFound = false;
+        foreach (var attachable in AttachedItems)
+        {
+            if (attachable is IMatchable matchable)
+            {
+                if (!matchedGroup.Contains(matchable))
+                {
+                    if (matchable.IsMatched(Type))
+                    {
+                        matchFound = true;
+                        if (matchedGroup.Count == 0)
+                        {
+                            matchedGroup.Add(this);
+                        }
+                        matchedGroup.Add(matchable);
+                        matchable.TryGetMatchedGroup(ref matchedGroup);
+                    }
+                }
+            }
+        }
+
+        return matchFound;
+    }
+
+    public bool IsMatched(MatchDefs.MatchType type)
+    {
+        return type == Type || type == MatchDefs.MatchType.Omni || Type == MatchDefs.MatchType.Omni;
+    }
+
+    public void SetMatchType(MatchDefs.MatchType type)
+    {
+        Type = type;
+        Colour = MatchDefs.ColorFromType(type);
+    }
+
+    public void SetMatchComplete()
+    {
+        m_state = TokenState.Matched;
     }
 }

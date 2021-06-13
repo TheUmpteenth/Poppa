@@ -6,6 +6,9 @@ using UnityEngine;
 
 public class LauncherController : MonoBehaviour
 {
+    private const int k_specialThresholdMin = 5;
+    private const int k_specialThresholdMax = 15;
+    
     [SerializeField] private RectTransform m_ballLocator;
     [SerializeField] private LaunchableFactory m_launchableFactory;
 
@@ -15,6 +18,9 @@ public class LauncherController : MonoBehaviour
     private Vector2 m_locatorPos = Vector2.zero;
     private Vector2 m_pointerPos = Vector2.zero;
     private Vector2 m_launchVector = Vector2.zero;
+
+    private int m_reloadCount = 0;
+    private int m_specialThreshold = 5;
 
     private bool m_inputBusy;
 
@@ -57,9 +63,20 @@ public class LauncherController : MonoBehaviour
         Reload();
     }
 
-    private ILaunchable SpawnLaunchable()
+    private ILaunchable SpawnLaunchable(bool special)
     {
         var spawnee = m_launchableFactory.Create();
+        if (spawnee is IMatchable matchable)
+        {
+            if (special)
+            {
+                matchable.SetMatchType(MatchDefs.RandomSpecialMatchType);
+            }
+            else
+            {
+                matchable.SetMatchType(MatchDefs.RandomMatchType);
+            }
+        }
         spawnee.View.transform.SetParent(m_ballLocator, true);
         spawnee.View.transform.SetPositionAndRotation(m_ballLocator.transform.position, Quaternion.identity);
         return spawnee;
@@ -73,6 +90,14 @@ public class LauncherController : MonoBehaviour
 
     private void Reload()
     {
-        m_loadedLaunchable = SpawnLaunchable();
+        var special = false;
+        if (++m_reloadCount > m_specialThreshold)
+        {
+            special = true;
+            m_reloadCount = 0;
+            m_specialThreshold = Mathf.FloorToInt(Random.value * (k_specialThresholdMax - k_specialThresholdMin) + k_specialThresholdMin);
+        }
+        m_loadedLaunchable = SpawnLaunchable(special);
+        
     }
 }

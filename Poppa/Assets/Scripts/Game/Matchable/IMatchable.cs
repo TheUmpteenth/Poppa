@@ -5,13 +5,13 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public interface IAttachable
+public interface IMatchable
 {
-    List<IAttachable> AttachedItems { get; set; }
-    Collider2D Collider { get; }
+    MatchDefs.MatchType Type { get; set; }
+    Color Colour { get; set; }
     
-    void BeginAttaching(IAttachable other);
-    void ResolveAttachments();
-    void SetAttachment(IAttachable other);
-    Vector2 GetAttachedPosition(Collision2D collision);
+    bool TryGetMatchedGroup(ref List<IMatchable> matchedGroup);
+    void SetMatchType(MatchDefs.MatchType type);
+    bool IsMatched(MatchDefs.MatchType type);
+    void SetMatchComplete();
 }
