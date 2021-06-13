@@ -1,16 +1,19 @@
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///---------------------------------------------------------------------------------------------------------------------
 /// Copyright Davie Farrell - 2021
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///---------------------------------------------------------------------------------------------------------------------
 
+using System;
 using UnityEngine;
 
 public interface ILaunchable
 {
+    public event Action OnLaunchableBecomesInactive;
+    
     GameObject View { get; }
     Vector2 Velocity { get; set; }
     float Speed { get; set; }
     
-    //temporary - this screams at the need for a manager for tokens
+    //TODO: temporary - this screams at the need for a manager for tokens
     Canvas ParentCanvas { set; }
     
     void Launch(Vector2 velocity);

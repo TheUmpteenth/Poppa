@@ -1,6 +1,6 @@
-﻿////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+﻿///---------------------------------------------------------------------------------------------------------------------
 /// Copyright Davie Farrell - 2021
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///---------------------------------------------------------------------------------------------------------------------
 
 using UnityEngine;
 
@@ -16,6 +16,8 @@ public class LauncherController : MonoBehaviour
     private Vector2 m_pointerPos = Vector2.zero;
     private Vector2 m_launchVector = Vector2.zero;
 
+    private bool m_inputBusy;
+
     void Start()
     {
         Reload();
@@ -25,8 +27,9 @@ public class LauncherController : MonoBehaviour
     {
         FollowMouse();
 
-        if (Input.GetMouseButtonDown(0))
+        if (!m_inputBusy && Input.GetMouseButtonDown(0))
         {
+            m_inputBusy = true;
             LaunchLoadedLaunchable();
         }
     }
@@ -47,6 +50,13 @@ public class LauncherController : MonoBehaviour
         m_ballLocator.eulerAngles = m_eulerAngles;
     }
 
+    private void OnLaunchableBecomesInactive()
+    {
+        m_loadedLaunchable.OnLaunchableBecomesInactive -= OnLaunchableBecomesInactive;
+        m_inputBusy = false;
+        Reload();
+    }
+
     private ILaunchable SpawnLaunchable()
     {
         var spawnee = m_launchableFactory.Create();
@@ -57,8 +67,8 @@ public class LauncherController : MonoBehaviour
 
     private void LaunchLoadedLaunchable()
     {
+        m_loadedLaunchable.OnLaunchableBecomesInactive += OnLaunchableBecomesInactive;
         m_loadedLaunchable?.Launch(m_launchVector);
-        Reload();
     }
 
     private void Reload()
