@@ -12,7 +12,8 @@ The simple, 80s retro neon style is used just because it's easy to achieve with 
 
 Known isses
 
-- There's no concept of building an intial level
+- There's no concept of building an intial level/ populating the board
+- There's no level fail condition
 - Horizontal attachment is flaky at best
 - There's nothing to force the type selection to facilitate a win
 - There are no pools
